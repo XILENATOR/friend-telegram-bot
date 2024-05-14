@@ -94,13 +94,11 @@ def strip_(s):
 
 
 def lists():
-    f = open("users.txt", "r")
-    list_thing = []
-    for i in f.readlines():
-        list_thing.append(i.split("/"))
-    for i in range(len(list_thing)):
-        list_thing[i][6] = list(map(strip_, list_thing[i][6].split(" ")))
-    return list_thing
+    a = cursor.execute('SELECT * FROM Users').fetchall()
+    for i in range(len(a)):
+        a[i] = list(a[i])
+        a[i][6] = a[i][6].split()
+    return a
 
 
 @dp.message(Information.photo)
