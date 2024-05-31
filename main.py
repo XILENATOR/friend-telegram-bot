@@ -53,6 +53,7 @@ class EditPhoto(StatesGroup):
 @dp.message(Command("start"))
 async def start(message, state):
     user_list = lists()
+    print(user_list)
     for i in range(len(user_list)):
         if message.chat.id == int(user_list[i][4]):
             await message.answer("You are already signed in, welcome back I guess.")
@@ -110,8 +111,9 @@ async def photo(message, state, bot):
     image = FSInputFile(f"photos/{message.chat.id}.jpg")
     await bot.send_photo(message.chat.id, image, caption=f"{result['name']} {result['second_name']} \nAge: {result['age']} \nInterests: {result['interests']}")
     # state.finish()
-    text_file = open("users.txt", "a")
-    text_file.write(f"{result['name']}/{result['second_name']}/{result['age']}/{result['interests']}/{message.chat.id}/{message.from_user.username}/{message.chat.id}\n")
+    with connection:
+        cursor.execute(
+            f'INSERT INTO Users VALUES ("{result["name"]}", "{result["second_name"]}", {result["age"]}, "{result["interests"]}", {message.chat.id}, "{message.from_user.username}", "{message.chat.id}")')
     keyboard = ReplyKeyboardMarkup(keyboard=[[KeyboardButton(text="Start a selection"), KeyboardButton(text="Edit profile")]])
     await message.answer("You have been registered!", reply_markup=keyboard)
 
@@ -126,7 +128,7 @@ async def filtered_text(message):
     duplicate_id = -1
     ignore_list = []
     for idk in range(len(chosen_user)):
-        if str(message.chat.id) in chosen_user[idk]:
+        if int(message.chat.id) in chosen_user[idk]:
             duplicate_id = idk
             ignore_list = chosen_user[idk][6]
     if duplicate_id != -1:
@@ -170,28 +172,31 @@ async def editor(message):
 
 
 def ignore(id_thing, ignored_id):
-    some_data_ig = lists()
-    for i in range(len(some_data_ig)):
-        if str(id_thing) in some_data_ig[i]:
-            if str(ignored_id) not in some_data_ig[i][6]:
-                some_data_ig[i][6].append(ignored_id)
-    file = open("users.txt", "w")
-    for i in range(len(some_data_ig)):
-        for j in range(len(some_data_ig[i]) - 1):
-            file.write(str(some_data_ig[i][j]) + "/")
-        for k in range(len(some_data_ig[i][6])):
-            if k == len(some_data_ig[i][6]) - 1:
-                file.write(str(some_data_ig[i][6][k]))
-            else:
-                file.write(str(some_data_ig[i][6][k]) + " ")
-        file.write("\n")
+    a = cursor.execute(f"SELECT Ignore_list FROM Users WHERE ID = {id_thing}").fetchall()
+    with connection:
+        cursor.execute(f'UPDATE Users SET Ignore_list = "{a[0][0] + " " + str(ignored_id)}" WHERE ID = {id_thing}')
+    # some_data_ig = lists()
+    # for i in range(len(some_data_ig)):
+    #     if str(id_thing) in some_data_ig[i]:
+    #         if str(ignored_id) not in some_data_ig[i][6]:
+    #             some_data_ig[i][6].append(ignored_id)
+    # file = open("users.txt", "w")
+    # for i in range(len(some_data_ig)):
+    #     for j in range(len(some_data_ig[i]) - 1):
+    #         file.write(str(some_data_ig[i][j]) + "/")
+    #     for k in range(len(some_data_ig[i][6])):
+    #         if k == len(some_data_ig[i][6]) - 1:
+    #             file.write(str(some_data_ig[i][6][k]))
+    #         else:
+    #             file.write(str(some_data_ig[i][6][k]) + " ")
+    #     file.write("\n")
 
 
 def find_id(id_idk):
     new_users = lists()
     print(new_users)
     for i in range(len(new_users)):
-        if new_users[i][4] == str(id_idk):
+        if new_users[i][4] == int(id_idk):
             return new_users[i]
 
 
@@ -232,17 +237,17 @@ async def callbacker(callback, callback_data):
     await filtered_text(callback.message)
 
 
-def file_edit(user_data_smh):
-    file = open("users.txt", "w")
-    for i in range(len(user_data_smh)):
-        for j in range(len(user_data_smh[i]) - 1):
-            file.write(str(user_data_smh[i][j]) + "/")
-        for k in range(len(user_data_smh[i][6])):
-            if k == len(user_data_smh[i][6]) - 1:
-                file.write(str(user_data_smh[i][6][k]))
-            else:
-                file.write(str(user_data_smh[i][6][k]) + " ")
-        file.write("\n")
+# def file_edit(user_data_smh):
+#     file = open("users.txt", "w")
+#     for i in range(len(user_data_smh)):
+#         for j in range(len(user_data_smh[i]) - 1):
+#             file.write(str(user_data_smh[i][j]) + "/")
+#         for k in range(len(user_data_smh[i][6])):
+#             if k == len(user_data_smh[i][6]) - 1:
+#                 file.write(str(user_data_smh[i][6][k]))
+#             else:
+#                 file.write(str(user_data_smh[i][6][k]) + " ")
+#         file.write("\n")
 
 
 @dp.callback_query(MyCallback.filter(F.foo == "name"))
@@ -277,45 +282,35 @@ async def callbacker(callback, callback_data, state):
 
 @dp.message(EditName.get_data)
 async def change(message, state):
-    user_data_smh = lists()
-    for i in range(len(user_data_smh)):
-        if user_data_smh[i][4] == str(message.chat.id):
-            user_data_smh[i][0] = message.text
-            break
-    file_edit(user_data_smh)
+    with connection:
+        cursor.execute(f'UPDATE Users SET Name = "{message.text}" WHERE ID = {message.chat.id}')
     await message.answer("The name change was successful. Your new name is " + message.text)
 
 
 @dp.message(EditSecondName.get_data)
 async def change(message, state):
-    user_data_smh = lists()
-    for i in range(len(user_data_smh)):
-        if user_data_smh[i][4] == str(message.chat.id):
-            user_data_smh[i][1] = message.text
-            break
-    file_edit(user_data_smh)
+    with connection:
+        cursor.execute(f'UPDATE Users SET Second_name = "{message.text}" WHERE ID = {message.chat.id}')
     await message.answer("The second name change was successful. Your new second name is " + message.text)
 
 
 @dp.message(EditAge.get_data)
 async def change(message, state):
-    user_data_smh = lists()
-    for i in range(len(user_data_smh)):
-        if user_data_smh[i][4] == str(message.chat.id):
-            user_data_smh[i][2] = message.text
-            break
-    file_edit(user_data_smh)
+    with connection:
+        cursor.execute(f'UPDATE Users SET Age = {message.text} WHERE ID = {message.chat.id}')
     await message.answer("The age change was successful. Your new age is " + message.text)
 
 
 @dp.message(EditInterests.get_data)
 async def change(message, state):
-    user_data_smh = lists()
-    for i in range(len(user_data_smh)):
-        if user_data_smh[i][4] == str(message.chat.id):
-            user_data_smh[i][3] = message.text
-            break
-    file_edit(user_data_smh)
+    # user_data_smh = lists()
+    # for i in range(len(user_data_smh)):
+    #     if user_data_smh[i][4] == str(message.chat.id):
+    #         user_data_smh[i][3] = message.text
+    #         break
+    # file_edit(user_data_smh)
+    with connection:
+        cursor.execute(f'UPDATE Users SET Interests = "{message.text}" WHERE ID = {message.chat.id}')
     await message.answer("The interests list change was successful. Your new interests are " + message.text)
 
 
